@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import joblib
 import os
@@ -14,13 +14,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "model", "student_model.joblib")
+# Load model ONCE when server starts
+MODEL_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "model",
+    "student_model.joblib"
+)
+
 model = joblib.load(MODEL_PATH)
 
 class Input(BaseModel):
-    weekly_self_study_hours: float = Field(..., ge=0, le=40)
-    attendance_percentage: float = Field(..., ge=0, le=100)
-    class_participation: float = Field(..., ge=0, le=10)
+    weekly_self_study_hours: float
+    attendance_percentage: float
+    class_participation: float
 
 @app.get("/health")
 def health():
@@ -33,9 +40,5 @@ def predict(data: Input):
         data.attendance_percentage,
         data.class_participation
     ]]
-    pred = float(model.predict(X)[0])
-
-    # clamp to 0–100
-    pred = max(0.0, min(100.0, pred))
-
-    return {"predicted_total_score": pred}
+    prediction = model.predict(X)[0]
+    return {"predicted_total_score": float(prediction)}
